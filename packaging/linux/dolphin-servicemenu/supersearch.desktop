@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Service
+Actions=searchHere;
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin,inode/directory
+[Desktop Action searchHere]
+Name=Search with SuperSearch
+Exec=supersearch-gui --folder %f
+Icon=system-search

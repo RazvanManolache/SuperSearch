@@ -1,0 +1,5 @@
+[Nemo Action]
+Name=Search with SuperSearch
+Exec=supersearch-gui --folder %F
+Selection=any
+Extensions=dir;

@@ -1,0 +1,9 @@
+[package]
+name = "supersearch-query"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+supersearch-core = { path = "../supersearch-core" }
+regex = "1"
+nucleo-matcher = "0.3"

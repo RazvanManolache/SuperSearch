@@ -1,0 +1,28 @@
+# Build outputs and local tooling
+/target/
+/generated_images/
+__pycache__/
+*.py[cod]
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local indexes, settings, logs, and credentials
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+*.jsonl
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Compiled binaries
+*.exe
+*.dll
+*.pdb

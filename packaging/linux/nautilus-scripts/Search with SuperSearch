@@ -1,0 +1,9 @@
+#!/bin/sh
+# Search the selected folders with SuperSearch (installed from its
+# System integration settings).
+for p in "$@"; do
+    case "$p" in file://*) p=$(printf '%s' "$p" | sed 's|^file://||');; esac
+    if [ -d "$p" ]; then exec supersearch-gui --folder "$p"; fi
+done
+uri=${NAUTILUS_SCRIPT_CURRENT_URI#file://}
+exec supersearch-gui --folder "${uri:-$HOME}"

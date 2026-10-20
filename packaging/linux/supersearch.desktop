@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SuperSearch
+Comment=Fast file finder: names, content, regex, filters
+Exec=supersearch-gui --folder %f
+Icon=supersearch
+Terminal=false
+Categories=Utility;FileTools;
+StartupWMClass=SuperSearch
+MimeType=inode/directory;

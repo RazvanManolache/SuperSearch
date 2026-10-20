@@ -1,0 +1,28 @@
+[package]
+name = "supersearch-gui"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "supersearch-gui"
+path = "src/main.rs"
+
+[dependencies]
+supersearch-config = { path = "../supersearch-config" }
+supersearch-core = { path = "../supersearch-core" }
+supersearch-i18n = { path = "../supersearch-i18n" }
+supersearch-index = { path = "../supersearch-index" }
+supersearch-query = { path = "../supersearch-query" }
+eframe = "0.32"
+egui-phosphor = "0.10"
+rfd = "0.15"
+arboard = "3.7.0"
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+winres = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"

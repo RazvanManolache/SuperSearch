@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/supersearch-core",
+    "crates/supersearch-config",
+    "crates/supersearch-index",
+    "crates/supersearch-query",
+    "crates/supersearch-cli",
+    "crates/supersearch-gui",
+    "crates/supersearch-i18n",
+]
+resolver = "2"
