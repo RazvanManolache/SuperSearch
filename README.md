@@ -4,6 +4,8 @@
 
 A desktop file finder and command-line tool built in Rust. Search folders or drives, narrow down the results, and jump straight to what you need.
 
+**Windows download:** [SuperSearch v1.0.0 — 64-bit ZIP](https://github.com/RazvanManolache/SuperSearch/releases/download/v1.0.0/SuperSearch-v1.0.0-windows-x64.zip). Extract it and run `supersearch-gui.exe`; the archive also includes the `supersearch.exe` CLI. No Rust installation is needed. [Release notes and checksums](https://github.com/RazvanManolache/SuperSearch/releases/tag/v1.0.0).
+
 ![Full C drive filename search: SuperSearch live scan 6.42 seconds via NTFS MFT; Windows PowerShell recursive walk 443.05 seconds; lower is faster](docs/benchmarks/search-comparison.png)
 
 *Full `C:\` search for `notepad.exe`, elevated: SuperSearch found 9 files in 6.42 s via the NTFS MFT fast path; the Windows PowerShell recursive walk found 12 paths in 443.05 s. One complete pass each, process startup included; both skipped directory junctions and caches weren't flushed (SuperSearch ran first). All 9 SuperSearch paths appear in the baseline set — the 3 extra baseline paths are NTFS hardlink aliases of the same files. The baseline is Windows PowerShell's recursive file search, not the File Explorer interface. [Results and conditions](docs/benchmarks/search-comparison.json) · [Reproduce in PowerShell 7](docs/benchmarks/measure-search.ps1).*
