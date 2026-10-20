@@ -20,7 +20,7 @@ A desktop file finder and command-line tool built in Rust. Search folders or dri
 - **Quick previews** — read text snippets, see highlighted matches, then open or reveal a file.
 - **Less repetition** — save searches and reuse recent filters and remembered folders.
 - **Easy exports** — copy paths or export CSV, text, HTML, RTF, and Excel-readable XML spreadsheets.
-- **Make it yours** — light/dark themes, adjustable interface size, and a multilingual interface.
+- **Make it yours** — light/dark themes, 131 interface languages, and text/interface scaling from 50–200%.
 
 ## How it works — and why it's fast
 
@@ -73,6 +73,13 @@ A few ideas:
 ![SuperSearch searching file contents for TODO comments](docs/screenshots/content-search.png)
 
 *Screenshots use sample files rendered offscreen from the app's interface.*
+
+## Languages and text size
+
+- **131 language options** — including English, Romanian, French, German, Spanish, Chinese, and Japanese. Click the current language in the toolbar, then search by its native name, English name, or language code (such as `ro`).
+- **Switch instantly** — your language choice is saved for next time; missing translations fall back to English.
+- **Make text easier to read** — open **Display → Interface scale** and adjust from **50% to 200%**. Text, buttons, and result rows resize together, with changes applied immediately and remembered.
+- **Start fresh** — click **Reset to 100%** in Display to restore the default size.
 
 ## Install the CLI / add to PATH
 
