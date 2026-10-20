@@ -2036,8 +2036,14 @@ mod tests {
 
     #[test]
     fn live_search_finds_fixture_and_sorts_results() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("root");
+        // Relative roots deliberately use the directory walker. An absolute
+        // temporary folder on an elevated runner can enumerate its entire
+        // NTFS volume, making this small worker test depend on disk size.
+        let dir = tempfile::tempdir_in(".").unwrap();
+        let root = PathBuf::from(".")
+            .join(dir.path().file_name().unwrap())
+            .join("root");
+        assert!(!root.is_absolute());
         std::fs::create_dir(&root).unwrap();
         std::fs::write(root.join("a.txt"), "TODO small").unwrap();
         std::fs::write(root.join("b.txt"), "TODO substantially larger").unwrap();
