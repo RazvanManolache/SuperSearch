@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use eframe::egui;
+use egui_extras::{Column, TableBuilder};
 use supersearch_config::{default_config_path, AppConfig, FileGroup, RecentEntry, SavedSearch};
 use supersearch_core::export::{self, ExportFormat, ExportHook};
 use supersearch_core::FileEntry;
@@ -247,9 +248,16 @@ fn parse_size(s: &str, flag: &str, err_template: &str) -> Result<Option<u64>, St
     Ok(Some((value * mult as f64).round() as u64))
 }
 
-/// Sort a hit slice by column and direction. Shared by the worker
-/// threads (initial sort off the UI thread) and `sort_results`
-/// (header clicks), so both orders are identical by construction.
+/// Right-click row menu choice, applied after the results table is
+/// drawn (the menu closure only records; borrows resolve afterwards).
+#[derive(Clone, Copy)]
+enum RowAction {
+    Open,
+    Reveal,
+    Props,
+}
+
+/// Sort identically for worker results and header clicks.
 fn sort_entries(entries: &mut [FileEntry], key: SortKey, asc: bool) {
     match key {
         SortKey::Path => entries.sort_by(|a, b| a.path.cmp(&b.path)),
@@ -1765,6 +1773,17 @@ impl App {
         }
     }
 
+    fn on_props_selected(&mut self) {
+        let Some(entry) = self.selected.and_then(|i| self.results.get(i)) else {
+            self.status = self.tr.t("status.select_row").to_string();
+            return;
+        };
+        match show_file_properties(&entry.path) {
+            Ok(()) => {}
+            Err(e) => self.status = e,
+        }
+    }
+
     /// Copy every bulk-checked path to the clipboard (newline-joined).
     /// A missing clipboard (headless sessions) reports instead of
     /// panicking.
@@ -2159,17 +2178,32 @@ fn take_head(text: &str, n: usize) -> String {
 
 /// Open a path with the OS default handler (no extra dependencies).
 fn open_path(path: &Path) -> Result<(), String> {
+    #[cfg(not(target_os = "windows"))]
     let target = path.to_string_lossy().into_owned();
     #[cfg(target_os = "windows")]
-    let r = std::process::Command::new("cmd")
-        .args(["/C", "start", "", &target])
-        .spawn();
+    return supersearch_core::shell::open_path(path);
     #[cfg(target_os = "macos")]
     let r = std::process::Command::new("open").arg(&target).spawn();
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     let r = std::process::Command::new("xdg-open").arg(&target).spawn();
+    #[cfg(not(target_os = "windows"))]
     r.map(|_| ())
         .map_err(|e| format!("Open failed for {}: {e}", path.display()))
+}
+
+#[cfg(windows)]
+fn show_file_properties(path: &Path) -> Result<(), String> {
+    supersearch_core::shell::show_file_properties(path)
+}
+
+/// File properties outside Windows: no single native dialog exists
+/// (the preview pane already shows path, size, and modified time).
+#[cfg(not(windows))]
+fn show_file_properties(path: &Path) -> Result<(), String> {
+    Err(format!(
+        "Properties are only available on Windows ({}).",
+        path.display()
+    ))
 }
 
 /// Reveal a path in the OS file manager (select it when supported).
@@ -3708,77 +3742,150 @@ impl eframe::App for App {
             let mod_arrow = self.sort_arrow(SortKey::Modified).to_string();
             let mut sort_clicked: Option<SortKey> = None;
             let mut clicked_row: Option<usize> = None;
+            let mut open_row: Option<usize> = None;
             let mut toggled_check: Option<(PathBuf, bool)> = None;
+            let pending_action = std::cell::Cell::new(None);
+            let open_label = self.tr.t("results.row_open");
+            let open_hover = self.tr.t("results.row_open_hover");
+            let reveal_label = self.tr.t("results.row_reveal");
+            let reveal_hover = self.tr.t("results.row_reveal_hover");
+            let props_label = self.tr.t("results.row_props");
+            let props_hover = self.tr.t("results.row_props_hover");
+            let rowcheck_hover = self.tr.t("results.rowcheck_hover");
+            let path_header = self.tr.f("results.header_path", &[("arrow", &path_arrow)]);
+            let size_header = self.tr.f("results.header_size", &[("arrow", &size_arrow)]);
+            let mod_header = self.tr.f("results.header_mod", &[("arrow", &mod_arrow)]);
+            let sort_path_hover = self.tr.t("results.sort_path");
+            let sort_size_hover = self.tr.t("results.sort_size");
+            let sort_mod_hover = self.tr.t("results.sort_mod");
             let name_needle = self.name.trim().to_string();
             let hl_ci = self.case_insensitive;
             let hl_normal = ui.visuals().text_color();
-            egui::ScrollArea::both().show(ui, |ui| {
-                egui::Grid::new("results")
-                    .striped(true)
-                    .num_columns(5)
-                    .show(ui, |ui| {
+            let row_h = ui.text_style_height(&egui::TextStyle::Body) + 6.0;
+            let table_h = ui.available_height();
+            // Shared click/right-click/double-click wiring for the
+            // path, size, and date cells: click selects, right-click
+            // selects and opens the menu, double-click opens.
+            let mut wire_row_cell = |resp: egui::Response, gi: usize, hover: Option<&str>| {
+                let resp = match hover {
+                    Some(h) => resp.on_hover_text(h),
+                    None => resp,
+                };
+                if resp.clicked() {
+                    clicked_row = Some(gi);
+                }
+                if resp.secondary_clicked() {
+                    clicked_row = Some(gi);
+                }
+                if resp.double_clicked() {
+                    open_row = Some(gi);
+                }
+                resp.context_menu(|ui| {
+                    if ui.button(&open_label).on_hover_text(&open_hover).clicked() {
+                        pending_action.set(Some((gi, RowAction::Open)));
+                        ui.close();
+                    }
+                    if ui
+                        .button(&reveal_label)
+                        .on_hover_text(&reveal_hover)
+                        .clicked()
+                    {
+                        pending_action.set(Some((gi, RowAction::Reveal)));
+                        ui.close();
+                    }
+                    if ui
+                        .button(&props_label)
+                        .on_hover_text(&props_hover)
+                        .clicked()
+                    {
+                        pending_action.set(Some((gi, RowAction::Props)));
+                        ui.close();
+                    }
+                });
+            };
+            // The header lives outside the scrolling body, so it stays
+            // pinned while rows scroll; one column layout keeps headers
+            // and cells aligned.
+            TableBuilder::new(ui)
+                .id_salt("results")
+                .sense(egui::Sense::click())
+                .striped(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::exact(28.0))
+                .column(Column::exact(28.0))
+                .column(Column::remainder().clip(true))
+                .column(Column::initial(90.0).resizable(true))
+                .column(Column::initial(110.0).resizable(true))
+                .max_scroll_height(table_h)
+                .header(row_h, |mut header| {
+                    header.col(|ui| {
                         ui.weak(icons::CHECK_SQUARE);
+                    });
+                    header.col(|ui| {
                         ui.weak("");
-                        // Small buttons: full-size ones crowd the header
-                        // and steal emphasis from the rows.
+                    });
+                    // Small buttons: full-size ones crowd the header
+                    // and steal emphasis from the rows.
+                    header.col(|ui| {
                         if ui
-                            .small_button(
-                                self.tr.f("results.header_path", &[("arrow", &path_arrow)]),
-                            )
-                            .on_hover_text(self.tr.t("results.sort_path"))
+                            .small_button(path_header)
+                            .on_hover_text(sort_path_hover)
                             .clicked()
                         {
                             sort_clicked = Some(SortKey::Path);
                         }
+                    });
+                    header.col(|ui| {
                         if ui
-                            .small_button(
-                                self.tr.f("results.header_size", &[("arrow", &size_arrow)]),
-                            )
-                            .on_hover_text(self.tr.t("results.sort_size"))
+                            .small_button(size_header)
+                            .on_hover_text(sort_size_hover)
                             .clicked()
                         {
                             sort_clicked = Some(SortKey::Size);
                         }
+                    });
+                    header.col(|ui| {
                         if ui
-                            .small_button(self.tr.f("results.header_mod", &[("arrow", &mod_arrow)]))
-                            .on_hover_text(self.tr.t("results.sort_mod"))
+                            .small_button(mod_header)
+                            .on_hover_text(sort_mod_hover)
                             .clicked()
                         {
                             sort_clicked = Some(SortKey::Modified);
                         }
-                        ui.end_row();
-                        for gi in start..end {
-                            let e = &self.results[gi];
-                            let path_str = e.path.display().to_string();
-                            let size_str = human_size(e.size);
-                            let mod_str = mtime_short(e.mtime);
-                            let is_sel = self.selected == Some(gi);
+                    });
+                })
+                .body(|body| {
+                    body.rows(row_h, end - start, |mut row| {
+                        let gi = start + row.index();
+                        let e = &self.results[gi];
+                        let path_str = e.path.display().to_string();
+                        let size_str = human_size(e.size);
+                        let mod_str = mtime_short(e.mtime);
+                        let mod_full = mtime_display(e.mtime);
+                        let is_sel = self.selected == Some(gi);
+                        row.set_selected(is_sel);
+                        row.col(|ui| {
                             let mut is_checked = self.checked.contains(&e.path);
-                            let row_top = ui.cursor().min.y;
-                            let check_resp = ui
+                            if ui
                                 .checkbox(&mut is_checked, "")
-                                .on_hover_text(self.tr.t("results.rowcheck_hover"));
-                            // The click target below starts past the
-                            // checkbox so its own hitbox keeps working.
-                            let row_left = check_resp.rect.right();
-                            if check_resp.clicked() {
+                                .on_hover_text(&rowcheck_hover)
+                                .clicked()
+                            {
                                 toggled_check = Some((e.path.clone(), is_checked));
                             }
+                        });
+                        row.col(|ui| {
                             ui.label(egui::RichText::new(file_icon(e)).color(if e.is_dir {
                                 ACCENT
                             } else {
                                 ui.visuals().weak_text_color()
                             }));
-                            let ranges = highlight_ranges(&path_str, &name_needle, hl_ci);
-                            // Selected rows keep the plain selected style
-                            // (selection already marks the match); others
-                            // get match highlighting. `selectable_label`
-                            // only takes rich text, so highlighted rows
-                            // use a clicking label instead.
-                            if is_sel || ranges.is_empty() {
-                                if ui.selectable_label(is_sel, &path_str).clicked() {
-                                    clicked_row = Some(gi);
-                                }
+                        });
+                        let ranges = highlight_ranges(&path_str, &name_needle, hl_ci);
+                        // Cells leave clicks to the table's full-row target.
+                        row.col(|ui| {
+                            let path_resp = if is_sel || ranges.is_empty() {
+                                ui.add(egui::Label::new(&path_str).selectable(false))
                             } else {
                                 let job = highlight_job(
                                     &path_str,
@@ -3786,54 +3893,24 @@ impl eframe::App for App {
                                     hl_normal,
                                     egui::FontId::proportional(14.0),
                                 );
-                                if ui
-                                    .add(egui::Label::new(job).sense(egui::Sense::click()))
-                                    .clicked()
-                                {
-                                    clicked_row = Some(gi);
-                                }
-                            }
-                            ui.label(size_str);
-                            // Short date in the column; the full stamp
-                            // shows on hover. The date cell keeps its own
-                            // hitbox (click selects, hover shows the full
-                            // stamp), so the full-row target below stops
-                            // at its left edge.
-                            let date_resp = ui
-                                .add(egui::Label::new(mod_str).sense(egui::Sense::click()))
-                                .on_hover_text(mtime_display(e.mtime));
-                            let row_right = date_resp.rect.left();
-                            if date_resp.clicked() {
-                                clicked_row = Some(gi);
-                            }
-                            ui.end_row();
-                            // Full-row click target: the labels above only
-                            // span their text, so clicks on empty row space
-                            // or the size cell would otherwise miss.
-                            // Painted on the background layer so it never
-                            // covers the text.
-                            let row_rect = egui::Rect::from_min_max(
-                                egui::pos2(row_left, row_top),
-                                egui::pos2(row_right, ui.cursor().min.y),
-                            );
-                            let bg = ui.ctx().layer_painter(egui::LayerId::background());
-                            if is_sel {
-                                bg.rect_filled(row_rect, 0.0, ui.visuals().selection.bg_fill);
-                            }
-                            let row_resp = ui.interact(
-                                row_rect,
-                                egui::Id::new(("result_row", gi)),
-                                egui::Sense::click(),
-                            );
-                            if !is_sel && row_resp.hovered() {
-                                bg.rect_filled(row_rect, 0.0, ui.visuals().widgets.hovered.bg_fill);
-                            }
-                            if row_resp.clicked() {
-                                clicked_row = Some(gi);
-                            }
-                        }
+                                ui.add(egui::Label::new(job).selectable(false))
+                            };
+                            // Full path as tooltip: the column clips long
+                            // paths, and hovering used to show nothing.
+                            path_resp.on_hover_text(&path_str);
+                        });
+                        row.col(|ui| {
+                            ui.add(egui::Label::new(size_str).selectable(false));
+                        });
+                        // Short date in the column; the full stamp shows
+                        // on hover.
+                        row.col(|ui| {
+                            let date_resp = ui.add(egui::Label::new(mod_str).selectable(false));
+                            date_resp.on_hover_text(&mod_full);
+                        });
+                        wire_row_cell(row.response(), gi, None);
                     });
-            });
+                });
             if let Some((path, now)) = toggled_check {
                 if now {
                     self.checked.insert(path);
@@ -3846,6 +3923,20 @@ impl eframe::App for App {
             }
             if let Some(gi) = clicked_row {
                 self.selected = Some(gi);
+            }
+            // Right-click menu actions land on the row the menu opened
+            // on (right-click always selects it first).
+            if let Some((gi, action)) = pending_action.get() {
+                self.selected = Some(gi);
+                match action {
+                    RowAction::Open => self.on_open_selected(),
+                    RowAction::Reveal => self.on_reveal_selected(),
+                    RowAction::Props => self.on_props_selected(),
+                }
+            }
+            if let Some(gi) = open_row {
+                self.selected = Some(gi);
+                self.on_open_selected();
             }
         });
     }
@@ -3905,6 +3996,62 @@ fn main() -> eframe::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn results_table_renders_and_right_click_selects_row_headlessly() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut app = App::default();
+        app.config_path = tmp.path().join("config.json");
+        app.results = vec![
+            FileEntry::new("example-first.txt".into(), 10, 1_700_000_000, false),
+            FileEntry::new("example-second.txt".into(), 20, 1_700_000_000, false),
+        ];
+        let ctx = egui::Context::default();
+        let mut frame = eframe::Frame::_new_kittest();
+        let mut render = |events| {
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1600.0, 1600.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| eframe::App::update(&mut app, ctx, &mut frame),
+            )
+        };
+        render(vec![]);
+        let output = render(vec![]);
+        let pos = output
+            .shapes
+            .iter()
+            .find_map(|shape| {
+                if let egui::Shape::Text(text) = &shape.shape {
+                    if text.galley.text() == "example-second.txt" {
+                        return Some(text.pos + egui::vec2(5.0, 5.0));
+                    }
+                }
+                None
+            })
+            .expect("second result rendered in the table");
+        render(vec![
+            egui::Event::PointerMoved(pos),
+            egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Secondary,
+                pressed: true,
+                modifiers: Default::default(),
+            },
+        ]);
+        render(vec![egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Secondary,
+            pressed: false,
+            modifiers: Default::default(),
+        }]);
+        assert_eq!(app.selected, Some(1));
+    }
 
     /// The indexer toggle is headless state machine (no `egui::Context`
     /// needed): validation messages, start, status refresh, stop.

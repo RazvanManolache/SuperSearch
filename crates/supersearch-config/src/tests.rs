@@ -166,7 +166,6 @@ fn saved_search_add_replaces_and_remove_works() {
 }
 
 #[test]
-#[test]
 fn file_groups_resolve_customs_then_builtins() {
     let cfg = AppConfig::default();
     let images = cfg.resolve_file_group("images").expect("builtin");
@@ -242,7 +241,6 @@ fn saved_search_query_roundtrip() {
     assert_eq!(back, saved);
 }
 
-#[test]
 #[test]
 fn language_defaults_to_english_and_roundtrips() {
     // Old configs predate the key: they load as English.

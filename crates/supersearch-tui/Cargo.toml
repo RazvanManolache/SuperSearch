@@ -1,0 +1,22 @@
+[package]
+name = "supersearch-tui"
+version = "1.1.0"
+edition = "2021"
+
+[[bin]]
+name = "supersearch-tui"
+path = "src/main.rs"
+
+[dependencies]
+supersearch-config = { path = "../supersearch-config" }
+supersearch-core = { path = "../supersearch-core" }
+supersearch-i18n = { path = "../supersearch-i18n" }
+supersearch-index = { path = "../supersearch-index" }
+supersearch-query = { path = "../supersearch-query" }
+ratatui = "0.29"
+crossterm = "0.28"
+clap = { version = "4", features = ["derive"] }
+arboard = "3"
+
+[dev-dependencies]
+tempfile = "3"

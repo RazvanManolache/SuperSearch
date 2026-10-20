@@ -828,6 +828,7 @@ pub struct Lang {
     idx: usize,
 }
 
+#[allow(non_upper_case_globals)] // Public language aliases follow ISO title casing.
 impl Lang {
     /// English (also the fallback for every other language).
     pub const En: Lang = Lang { idx: 0 };

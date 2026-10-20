@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.0')
+param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.1.0')
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows) { throw 'Build this Windows archive on Windows with Rust installed.' }
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
@@ -22,7 +22,7 @@ try {
         "--remap-path-prefix=$projectRoot=.",
         "--remap-path-prefix=$env:USERPROFILE=.build-user"
     ) -join [char]31
-    & cargo build --release --locked --target $target -p supersearch-cli -p supersearch-gui
+    & cargo build --release --locked --target $target -p supersearch-cli -p supersearch-gui -p supersearch-tui
     if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
     $metadataText = & cargo metadata --locked --offline --format-version 1 --filter-platform $target
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read locked dependency metadata.' }
@@ -33,7 +33,7 @@ try {
         if ($packageMap[$member].version -ne $Version) { throw 'Requested version differs from the workspace packages.' }
     }
     New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
-    foreach ($binary in @('supersearch.exe', 'supersearch-gui.exe')) {
+    foreach ($binary in @('supersearch.exe', 'supersearch-gui.exe', 'supersearch-tui.exe')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot "target\$target\release\$binary") -Destination $packageRoot
     }
     $quickStart = @"
@@ -49,6 +49,12 @@ Normal folder searches work without administrator privileges.
 Command-line example (PowerShell, from this folder):
   .\supersearch.exe search --root "`$HOME\Documents" --live --name report --ignore-case
   .\supersearch.exe --help
+
+Interactive terminal interface (run inside PowerShell or Windows Terminal):
+  .\supersearch-tui.exe --folder "`$HOME\Documents"
+Use Tab to edit filters, F5 to search, Esc for results, and ? for help.
+Press q from the results or Ctrl+Q anywhere to quit. Terminal font size
+is controlled by your terminal application.
 
 To run the commands from anywhere, add this folder to your user PATH and
 restart your terminal application. Add the folder, not the executable.
@@ -101,7 +107,7 @@ Third-party dependency license files are included under licenses/.
     $notices.Add("`nRust standard library`nSource: https://github.com/rust-lang/rust`nCopyright and license texts: licenses/rust-standard-library/")
     [IO.File]::WriteAllText((Join-Path $packageRoot 'THIRD-PARTY-NOTICES.txt'), ($notices -join "`n") + "`n")
     $binaryHashes = [ordered]@{}
-    foreach ($binary in @('supersearch.exe', 'supersearch-gui.exe')) { $binaryHashes[$binary] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $packageRoot $binary)).Hash.ToLowerInvariant() }
+    foreach ($binary in @('supersearch.exe', 'supersearch-gui.exe', 'supersearch-tui.exe')) { $binaryHashes[$binary] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $packageRoot $binary)).Hash.ToLowerInvariant() }
     $buildInfo = [ordered]@{
         version = $Version; target = $target; source_commit = $sourceCommit
         source_repository = 'https://github.com/RazvanManolache/SuperSearch'

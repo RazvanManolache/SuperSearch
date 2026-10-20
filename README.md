@@ -2,9 +2,9 @@
 
 **Super fast file search. Find it, preview it, get on with your day.**
 
-A desktop file finder and command-line tool built in Rust. Search folders or drives, narrow down the results, and jump straight to what you need.
+A desktop file finder, interactive terminal app, and command-line tool built in Rust. Search folders or drives, narrow down the results, and jump straight to what you need.
 
-**Windows download:** [SuperSearch v1.0.0 — 64-bit ZIP](https://github.com/RazvanManolache/SuperSearch/releases/download/v1.0.0/SuperSearch-v1.0.0-windows-x64.zip). Extract it and run `supersearch-gui.exe`; the archive also includes the `supersearch.exe` CLI. No Rust installation is needed. [Release notes and checksums](https://github.com/RazvanManolache/SuperSearch/releases/tag/v1.0.0).
+**Windows download:** [SuperSearch v1.1.0 — 64-bit ZIP](https://github.com/RazvanManolache/SuperSearch/releases/download/v1.1.0/SuperSearch-v1.1.0-windows-x64.zip). Extract it and run `supersearch-gui.exe`; the archive also includes the `supersearch.exe` CLI and `supersearch-tui.exe` terminal app. No Rust installation is needed. [Release notes and checksums](https://github.com/RazvanManolache/SuperSearch/releases/tag/v1.1.0).
 
 ![Full C drive filename search: SuperSearch live scan 6.42 seconds via NTFS MFT; Windows PowerShell recursive walk 443.05 seconds; lower is faster](docs/benchmarks/search-comparison.png)
 
@@ -17,6 +17,7 @@ A desktop file finder and command-line tool built in Rust. Search folders or dri
 - **Flexible search** — names, wildcards, regex, fuzzy matching, and text inside files.
 - **Useful filters** — combine file types, size, dates, and exclusions.
 - **Independent tabs** — keep different folders and searches side by side.
+- **Your choice of interface** — desktop, keyboard-driven terminal app, or scriptable CLI, sharing the same search engine.
 - **Quick previews** — read text snippets, see highlighted matches, then open or reveal a file.
 - **Less repetition** — save searches and reuse recent filters and remembered folders.
 - **Easy exports** — copy paths or export CSV, text, HTML, RTF, and Excel-readable XML spreadsheets.
@@ -52,14 +53,16 @@ cargo build --release --workspace --locked
 cargo run --release -p supersearch-gui
 ```
 
-- Built apps live in `target/release/`: `supersearch-gui` and `supersearch` (`.exe` on Windows).
+- Built apps live in `target/release/`: `supersearch-gui`, `supersearch-tui`, and `supersearch` (`.exe` on Windows).
 - Linux desktop builds need the development libraries for your X11/Wayland environment.
 - Only need the terminal? Build with `cargo build --release -p supersearch-cli --locked`.
+- Prefer a terminal interface? Run `cargo run --release -p supersearch-tui -- --folder ./docs`.
 
 ## Try a search
 
 - Click **Add folder**, enter a filter, and press **Enter** or **Scan & search**.
 - Select a result to preview it; use **Open** or **Reveal** to jump to it.
+- Double-click a result to open it, or right-click for **Open**, **Show in folder**, and **Properties** (Windows). Column headers stay visible while you scroll; hover over a path to read it in full.
 - Enable **Live** to search as you edit, or **+ New** for another tab.
 
 A few ideas:
@@ -80,6 +83,26 @@ A few ideas:
 - **Switch instantly** — your language choice is saved for next time; missing translations fall back to English.
 - **Make text easier to read** — open **Display → Interface scale** and adjust from **50% to 200%**. Text, buttons, and result rows resize together, with changes applied immediately and remembered.
 - **Start fresh** — click **Reset to 100%** in Display to restore the default size.
+- **In the terminal app** — press **Esc**, then **F4** (or **Ctrl+L**) to choose a language. Change font size in your terminal application's settings; the Display slider belongs to the desktop app.
+
+## Interactive terminal app
+
+Run these from the extracted Windows release folder:
+
+```powershell
+.\supersearch-tui.exe --folder "$HOME\Documents"
+.\supersearch-tui.exe --folder ./docs --folder ./notes
+.\supersearch-tui.exe --db ./index.db
+```
+
+- **Search:** use **Tab / Shift+Tab** to edit folders and filters, then **F5** or **Enter** to search. Separate folders with `;` in the folder field.
+- **Browse:** press **Esc** for results; use **↑ / ↓**, **PgUp / PgDn**, **s** to change the sort column, and **S** to reverse it. **v** toggles the preview.
+- **Work with results:** **Enter** opens, **r** reveals, **p** shows properties, **Space** checks a row, **y** copies paths, and **e** exports. Copy/export uses all results when none are checked.
+- **Manage checked files:** **m** moves into an existing folder without replacing existing names. **d**, then **y**, permanently deletes checked files and folders.
+- **Keep your searches:** **Ctrl+T / Ctrl+W** adds/closes a tab; **[ / ]** switches tabs from results. **F2 / F3** saves/loads searches; **Ctrl+S / Ctrl+O** also work from filter fields.
+- **Help and exit:** **?** shows keys from results; **q** quits there, or **Ctrl+Q** quits anywhere. **Esc** cancels an active search; its background scan may finish before stopping.
+
+For installation from source, run `cargo install --path crates/supersearch-tui --locked`; after adding its folder to PATH, use `supersearch-tui` from any folder. Saved searches and language preferences share the desktop app's config file. [What's new in v1.1.0](CHANGELOG.md).
 
 ## Install the CLI / add to PATH
 

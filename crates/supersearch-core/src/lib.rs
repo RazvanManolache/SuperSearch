@@ -4,6 +4,9 @@ use std::path::PathBuf;
 /// export buttons (plain text, HTML, RTF, Excel XML).
 pub mod export;
 
+#[cfg(windows)]
+pub mod shell;
+
 /// A single indexed filesystem entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileEntry {

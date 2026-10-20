@@ -6,6 +6,7 @@ members = [
     "crates/supersearch-query",
     "crates/supersearch-cli",
     "crates/supersearch-gui",
+    "crates/supersearch-tui",
     "crates/supersearch-i18n",
 ]
 resolver = "2"
