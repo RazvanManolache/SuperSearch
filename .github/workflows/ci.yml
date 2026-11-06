@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -32,7 +32,7 @@ jobs:
           if (!$version) { throw 'Application version is missing.' }
           ./packaging/windows/build-release.ps1 -Version $version
       - name: Upload portable Windows package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: SuperSearch-windows-x64
           path: |
