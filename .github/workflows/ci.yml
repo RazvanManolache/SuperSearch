@@ -13,30 +13,38 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      - name: Check all targets
-        run: cargo check --workspace --all-targets --locked
-      - name: Run tests without installing Explorer integration
-        run: cargo test --workspace --locked -- --skip context_menu_roundtrips
-      - name: Package portable Windows applications
-        shell: pwsh
-        run: |
-          $metadata = cargo metadata --no-deps --locked --format-version 1 | ConvertFrom-Json
-          if ($LASTEXITCODE) { throw 'Cannot read the application version.' }
-          $version = ($metadata.packages | Where-Object name -eq 'supersearch-cli').version
-          if (!$version) { throw 'Application version is missing.' }
-          ./packaging/windows/build-release.ps1 -Version $version
-      - name: Upload portable Windows package
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: SuperSearch-windows-x64
-          path: |
-            target/releases/*/*.zip
-            target/releases/*/SHA256SUMS.txt
-          if-no-files-found: error
-          retention-days: 14
+    - uses: actions/checkout@v7.0.1
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    - name: Check all targets
+      run: cargo check --workspace --all-targets --locked
+    - name: Run tests without installing Explorer integration
+      run: cargo test --workspace --locked -- --skip context_menu_roundtrips
+    - name: Package portable Windows applications
+      shell: pwsh
+      run: |
+        $metadata = cargo metadata --no-deps --locked --format-version 1 | ConvertFrom-Json
+        if ($LASTEXITCODE) { throw 'Cannot read the application version.' }
+        $version = ($metadata.packages | Where-Object name -eq 'supersearch-cli').version
+        if (!$version) { throw 'Application version is missing.' }
+        ./packaging/windows/build-release.ps1 -Version $version
+    - name: Upload portable Windows package
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const publish = require('./.github/scripts/publish-build.cjs');
+          await publish({github, context, core, glob, exec});
+      env:
+        BUILD_NAME: SuperSearch-windows-x64
+        BUILD_PATHS: |
+          target/releases/*/*.zip
+          target/releases/*/SHA256SUMS.txt
+        BUILD_HIDDEN: 'false'
+        BUILD_MISSING: error
+      if: (success()) && success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.event_name != 'pull_request'
+    permissions:
+      contents: write
+
