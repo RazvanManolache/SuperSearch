@@ -3,6 +3,7 @@ name: Windows checks
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,7 +11,7 @@ permissions:
 jobs:
   check:
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -22,3 +23,20 @@ jobs:
         run: cargo check --workspace --all-targets --locked
       - name: Run tests without installing Explorer integration
         run: cargo test --workspace --locked -- --skip context_menu_roundtrips
+      - name: Package portable Windows applications
+        shell: pwsh
+        run: |
+          $metadata = cargo metadata --no-deps --locked --format-version 1 | ConvertFrom-Json
+          if ($LASTEXITCODE) { throw 'Cannot read the application version.' }
+          $version = ($metadata.packages | Where-Object name -eq 'supersearch-cli').version
+          if (!$version) { throw 'Application version is missing.' }
+          ./packaging/windows/build-release.ps1 -Version $version
+      - name: Upload portable Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuperSearch-windows-x64
+          path: |
+            target/releases/*/*.zip
+            target/releases/*/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14

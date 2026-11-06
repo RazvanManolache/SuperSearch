@@ -230,3 +230,11 @@ supersearch copy-path "./docs/report.txt"
 ## Contributing
 
 Ideas, bug reports, and improvements are welcome. Run `cargo test --workspace --locked` to check your changes.
+
+## Build on GitHub
+
+Open [Actions](https://github.com/RazvanManolache/SuperSearch/actions), select **Windows checks**, then choose **Run workflow** and a branch. When the run succeeds, download its files from **Artifacts** at the bottom of the run page (GitHub sign-in required).
+
+SuperSearch-windows-x64 contains the portable CLI, desktop and terminal apps, license notices, build identity and SHA-256 checksums.
+
+Build downloads are retained for 14 days. They are development snapshots, separate from tagged releases; running this workflow does not publish a release.
